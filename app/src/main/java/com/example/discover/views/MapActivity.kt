@@ -1,66 +1,36 @@
 package com.example.discover.views
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.SearchView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import com.example.discover.R
+import com.example.discover.api.GeocodingHandler
+import com.example.discover.viewmodels.MapViewModel
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
 
 
 class MapActivity : AppCompatActivity() , OnMapReadyCallback {
 
     private val tag = "MapActivity"
-    private val fineLocation: String = Manifest.permission.ACCESS_FINE_LOCATION
-    private val courseLocation: String = Manifest.permission.ACCESS_COARSE_LOCATION
-    private val locationRequestCode = 1234
-
-    private var mLocationPermissionsGranted = false
-    private var mMap: GoogleMap? = null
+    private lateinit var mapViewModel: MapViewModel
+    private lateinit var mMap: GoogleMap
+    private lateinit var btn: Button
+    private lateinit var searchBar: SearchView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_map)
-        getLocationPermission()
-    }
+        initMap()
 
-    private fun getLocationPermission() {
-        Log.d(tag, "getLocationPermission: getting location permissions")
-        val permissions = arrayOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        if (ContextCompat.checkSelfPermission(
-                this.applicationContext,
-                fineLocation
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            if (ContextCompat.checkSelfPermission(
-                    this.applicationContext,
-                    courseLocation
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                mLocationPermissionsGranted = true
-            } else {
-                ActivityCompat.requestPermissions(
-                    this,
-                    permissions,
-                    locationRequestCode
-                )
-            }
-        } else {
-            ActivityCompat.requestPermissions(
-                this,
-                permissions,
-                locationRequestCode
-            )
-        }
     }
 
     private fun initMap() {
@@ -73,33 +43,28 @@ class MapActivity : AppCompatActivity() , OnMapReadyCallback {
         Toast.makeText(this, "Map is Ready", Toast.LENGTH_SHORT).show()
         Log.d(tag, "onMapReady: map is ready")
         mMap = googleMap
-    }
+        mapViewModel = ViewModelProvider(this).get(MapViewModel::class.java)
+        searchBar = findViewById(R.id.search_bar)
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        Log.d(tag, "Permission results arrived")
-        var mLocationPermissionGranted = false
-
-        when(requestCode) {
-            locationRequestCode -> {
-                if(grantResults.isNotEmpty()) {
-                    for (i in 0..grantResults.size) {
-                        if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                            mLocationPermissionsGranted = false
-                            Log.d(tag, "onRequestPermissionsResult: permission failed")
-                            return
-                        }
-                    }
-                    Log.d(tag, "onRequestPermissionsResult: permission granted")
-                    mLocationPermissionsGranted = true
-                    //initialize our map
-                    initMap()
+        searchBar.setOnQueryTextListener(
+            object : SearchView.OnQueryTextListener {
+                override fun onQueryTextSubmit(query: String?): Boolean {
+                    val location: String = searchBar.query.toString()
+                    val latlng: LatLng = GeocodingHandler.coordinateProvider(this@MapActivity, location)
+                    placeMapMarker(latlng)
+                    return false
                 }
+
+                override fun onQueryTextChange(newText: String?): Boolean { return false }
             }
-        }
+        )
+        mapViewModel.centralLocation.observe(this) { placeMapMarker(it)}
     }
+
+    private fun placeMapMarker(latLng : LatLng) {
+        mMap.clear()
+        mMap.addMarker(MarkerOptions().position(latLng))
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 10F))
+    }
+
 }
