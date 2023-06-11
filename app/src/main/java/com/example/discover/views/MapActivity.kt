@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.discover.R
 import com.example.discover.api.GeocodingHandler
+import com.example.discover.api.NearbyPlacesAPI
+import com.example.discover.api.RetrofitHelper
 import com.example.discover.viewmodels.MapViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -16,6 +18,8 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 
 class MapActivity : AppCompatActivity() , OnMapReadyCallback {
@@ -45,19 +49,23 @@ class MapActivity : AppCompatActivity() , OnMapReadyCallback {
         mMap = googleMap
         mapViewModel = ViewModelProvider(this).get(MapViewModel::class.java)
         searchBar = findViewById(R.id.search_bar)
-
+        btn = findViewById(R.id.button)
         searchBar.setOnQueryTextListener(
             object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(query: String?): Boolean {
                     val location: String = searchBar.query.toString()
                     val latlng: LatLng = GeocodingHandler.coordinateProvider(this@MapActivity, location)
-                    placeMapMarker(latlng)
+                    mapViewModel.centralLocation.postValue(latlng)
                     return false
                 }
 
                 override fun onQueryTextChange(newText: String?): Boolean { return false }
             }
         )
+
+        btn.setOnClickListener {
+            markNearbyPlaces()
+        }
         mapViewModel.centralLocation.observe(this) { placeMapMarker(it)}
     }
 
@@ -65,6 +73,27 @@ class MapActivity : AppCompatActivity() , OnMapReadyCallback {
         mMap.clear()
         mMap.addMarker(MarkerOptions().position(latLng))
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 10F))
+    }
+
+    private  fun markNearbyPlaces() {
+        Toast.makeText(this, "Button Clicked!", Toast.LENGTH_SHORT).show()
+        Log.d("test", "I want to see this")
+        val lat = mapViewModel.centralLocation.value?.latitude
+        val lng = mapViewModel.centralLocation.value?.longitude
+        if (lat != null) {
+            if (lng != null) {
+                val nearbyPlacesAPI = RetrofitHelper.getInstance().create(NearbyPlacesAPI::class.java)
+                GlobalScope.launch {
+                    val result = nearbyPlacesAPI.getNearbyPlaces(
+                        "AIzaSyA3zeQUA47kyCgI5XJFJMn6zybxb3jPqeQ",
+                        "$lat,$lng",
+                        5000
+                    )
+                    Log.d("test",result.body().toString())
+                }
+            }
+        }
+
     }
 
 }
