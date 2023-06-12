@@ -1,5 +1,6 @@
 package com.example.discover.views
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
@@ -7,10 +8,13 @@ import android.widget.SearchView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import com.example.discover.BuildConfig
 import com.example.discover.R
 import com.example.discover.api.GeocodingHandler
 import com.example.discover.api.NearbyPlacesAPI
 import com.example.discover.api.RetrofitHelper
+import com.example.discover.models.Marker
+import com.example.discover.models.Result
 import com.example.discover.viewmodels.MapViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -83,14 +87,18 @@ class MapActivity : AppCompatActivity() , OnMapReadyCallback {
         if (lat != null) {
             if (lng != null) {
                 val nearbyPlacesAPI = RetrofitHelper.getInstance().create(NearbyPlacesAPI::class.java)
+                val markerList = ArrayList<Marker>()
                 GlobalScope.launch {
                     val result = nearbyPlacesAPI.getNearbyPlaces(
-                        "AIzaSyA3zeQUA47kyCgI5XJFJMn6zybxb3jPqeQ",
+                        BuildConfig.MAPS_API_KEY,
                         "$lat,$lng",
                         5000
                     )
-                    Log.d("test",result.body().toString())
+                    Log.d("test", result.body().toString())
+
                 }
+
+
             }
         }
 
